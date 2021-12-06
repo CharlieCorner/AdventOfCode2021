@@ -9,17 +9,19 @@ def part_1():
     
 
 def part_2():
-    bits = parse_bits(read_input_file("3_test.txt"))
+    bits = parse_bits(read_input_file("3_case.txt"))
 
-    o2_gen_rating = calculate_o2_rating(bits)
+    o2_gen_rating = calculate_rating(bits,
+                                     should_look_for_most_common=True)
 
-    co2_scrubber_rating = calculate_co2_rating(bits)
+    co2_scrubber_rating = calculate_rating(bits,
+                                           should_look_for_most_common=False)
 
     life_support_rating = o2_gen_rating * co2_scrubber_rating
 
     print(f"O2 Rating: {o2_gen_rating}, co2_rating: {co2_scrubber_rating}, life_support_rating: {life_support_rating}")
 
-def calculate_o2_rating(bits: list) -> int:
+def calculate_rating(bits: list, should_look_for_most_common : bool = True) -> int:
     num_digits = len(bits[0])
     
     # Start with all the numbers
@@ -33,38 +35,12 @@ def calculate_o2_rating(bits: list) -> int:
 
         # Determine value to keep
         if sum_col_digits >= max_sum / 2:
-            most_common_value = 1
+            val_to_look_for = 1 if should_look_for_most_common else 0
         else:
-            most_common_value = 0
+            val_to_look_for = 0 if should_look_for_most_common else 1
 
         # Remove numbers that don't have the most common value in them
-        result = list(filter(lambda candidate: candidate[i] == most_common_value, result))
-
-        if len(result) == 1:
-            break
-    
-    return binary_2_int(result[0])
-
-
-def calculate_co2_rating(bits: list) -> int:
-    num_digits = len(bits[0])
-    
-    # Start with all the numbers
-    result = bits.copy()
-
-    # Test for each of the column of digits
-    for i in range(num_digits):
-        sum_col_digits = sum([candidate[i] for candidate in result])
-        max_sum = len(result)
-
-        # Determine value to keep
-        if sum_col_digits >= max_sum / 2:
-            least_common_value = 0
-        else:
-            least_common_value = 1
-
-        # Remove numbers that don't have the most common value in them
-        result = list(filter(lambda candidate: candidate[i] == least_common_value, result))
+        result = list(filter(lambda candidate: candidate[i] == val_to_look_for, result))
 
         if len(result) == 1:
             break
