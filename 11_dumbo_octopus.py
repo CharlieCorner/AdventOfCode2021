@@ -21,7 +21,41 @@ class Day11(AdventDay):
         print(f"After {steps} steps, there have been a total of {num_flashes}")
 
     def part_2(self):
-        return super().part_2()
+        octopuses = self.parsed_input
+        num_steps = self._find_moment_of_complete_flash(octopuses)
+        print(f"After {num_steps} steps, all octopuses will use HM02 FLASH!")
+
+    def _find_moment_of_complete_flash(self, octopuses: list) -> int:
+
+        self._print_octopuses(octopuses)
+        step = 0
+        flashing_octopi = {}
+
+        while len(flashing_octopi) != 100:
+            
+            # Clear the count
+            flashing_octopi = {}
+            step += 1
+
+            # Increase the energy level by 1
+            for x, row in enumerate(octopuses):
+                for y, octopus in enumerate(row):
+                    octopus = octopus + 1 if octopus < 9 else 0
+                    octopuses[x][y] = octopus
+
+            # Check and count for flashes
+            for x, row in enumerate(octopuses):
+                for y, octopus in enumerate(row):
+
+                    # FLAAAAASH, AAAAAAAH!
+                    if octopus == 0 and (x, y) not in flashing_octopi:
+                        self._flash_neighbors(
+                            (x, y), octopuses, flashing_octopi)
+
+            print(f"After step {step}:")
+            self._print_octopuses(octopuses)
+
+        return step
 
     def _simulate_steps(self, octopuses: list, steps: int) -> int:
         num_of_flashes = 0
@@ -95,7 +129,7 @@ class Day11(AdventDay):
         if octo_val == 0:
             if (x, y) not in flashing_octopi:
                 neighbor_stack.append((x, y))
-            
+
             return octopuses, neighbor_stack
 
         octopuses[x][y] = octo_val + 1 if octo_val < 9 else 0
@@ -112,4 +146,4 @@ class Day11(AdventDay):
 
 
 if __name__ == "__main__":
-    Day10("11_input.txt").part_1()
+    Day11("11_input.txt").part_2()
