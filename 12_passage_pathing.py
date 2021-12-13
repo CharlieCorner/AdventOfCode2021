@@ -44,8 +44,6 @@ class Day12(AdventDay):
         cave_map = self.parsed_input
         nav = Navigator(cave_map=cave_map)
 
-        nav.Pointer.small_cave_visits_allowed = 1
-
         result = nav.start_navigation()
 
         result = [str(point) for point in result]
@@ -77,21 +75,20 @@ class Navigator:
 
     class Pointer:
 
-        small_cave_visits_allowed = 1
-
         def __init__(self, current_cave: Cave,
                      prev_pointer: Navigator.Pointer = None) -> None:
             self.current_cave = current_cave
             self.reached_end = current_cave.is_end
+            self.last_update = ""
 
             if prev_pointer:
                 self.path_so_far = prev_pointer.path_so_far.copy()
                 self.visited_caves = prev_pointer.visited_caves.copy()
-                self.has_visited_small_cave_twice = prev_pointer.has_visited_small_cave_twice
+                
             else:
                 self.path_so_far = []
                 self.visited_caves = {}
-                self.has_visited_small_cave_twice = False
+                
 
             # Add tracking of the current cave
             self.path_so_far.append(current_cave)
@@ -127,18 +124,17 @@ class Navigator:
             if next_cave.is_end:
                 return True
 
+            # From here, we are only dealing with small caves
             # We are only allowed to continue if we haven't explored a cave twice yet
-            # if next_cave.is_small and self.has_visited_small_cave_twice:
-            #    return False
 
             cave_visits_quota = self.visited_caves[next_cave] if next_cave in self.visited_caves else 0
 
-            has_visits_quota = cave_visits_quota < self.small_cave_visits_allowed
-
-            small_cave_allowed = next_cave.is_small and has_visits_quota
-
-            # We can only visit a small cave more than once, once
-            self.has_visited_small_cave_twice = True
+            if cave_visits_quota < 1:
+                small_cave_allowed = True
+            else:
+                has_visited_small_cave_twice = any([cnt > 1 for cave, cnt in self.visited_caves.items() if cave.is_small])
+                small_cave_allowed = not has_visited_small_cave_twice
+                
 
             return small_cave_allowed
 
