@@ -42,7 +42,14 @@ class Day13(AdventDay):
             break
 
     def part_2(self):
-        return super().part_2()
+        marked_paper, folds = self.parsed_input
+
+        for fold_num, axis in enumerate(folds):
+            axis, axis_position = axis
+            marked_paper.do_fold(axis, axis_position)
+            print(f"Processing fold {fold_num + 1}/{len(folds)}...")
+        
+        print(f"Final shape:\n\n{str(marked_paper)}")
 
 
 class PaperSheet:
@@ -124,4 +131,4 @@ class PaperSheet:
 
 
 if __name__ == "__main__":
-    Day13("13_input.txt").part_1()
+    Day13("13_input.txt").part_2()
