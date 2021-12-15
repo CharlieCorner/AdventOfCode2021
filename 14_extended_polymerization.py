@@ -1,3 +1,5 @@
+from collections import Counter
+
 from advent_utils import AdventDay
 
 
@@ -29,9 +31,15 @@ class Day14(AdventDay):
 
     def part_1(self):
         polymer_template, rules = self.parsed_input
+
         polymer = self.polymerization(
-            polymer_template, rules, steps=10, debug=True)
+            polymer_template, rules, steps=10, debug=False)
         print(f"Polymer of size: {len(polymer)}")
+
+        most_common, less_common = self.calculate_most_less_common(polymer)
+        print(f"Most common: {most_common}\nLess common: {less_common}")
+
+        print(f"Final result: {most_common[1] - less_common[1]}")
 
     def part_2(self):
         return super().part_2()
@@ -43,7 +51,7 @@ class Day14(AdventDay):
             step_polymer = []
 
             for i in range(len(polymer)):
-                
+
                 # Don't forget the last letter!
                 if i == len(polymer) - 1:
                     step_polymer.append(polymer[i])
@@ -58,6 +66,12 @@ class Day14(AdventDay):
                 print(f"After step {step + 1}: size {len(polymer)} {polymer}")
         return polymer
 
+    def calculate_most_less_common(self, polymer) -> tuple:
+        count = Counter(polymer)
+        max_key = max(count, key=count.get)
+        min_key = min(count, key=count.get)
+        return (max_key, count[max_key]), (min_key, count[min_key])
+
 
 if __name__ == "__main__":
-    Day14("14_test.txt").part_1()
+    Day14("14_input.txt").part_1()
