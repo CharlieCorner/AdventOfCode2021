@@ -32,13 +32,11 @@ class Day13(AdventDay):
 
     def part_1(self):
         marked_paper, folds = self.parsed_input
-
-        print(str(marked_paper))
-
-        print("THEN")
+        print(f"Start as: \n {str(marked_paper)}")
 
         for axis, axis_position in folds:
             marked_paper.do_fold(axis, axis_position)
+            print("\n\nNew shape:")
             print(str(marked_paper))
             print(f"Marks count: {marked_paper.num_markings}")
             break
@@ -67,6 +65,17 @@ class PaperSheet:
 
         self.marked_paper = marked_paper
 
+    def __str__(self) -> str:
+        # Given that x is the horizontal axis and y is the vertical one, we need to transpose
+        #  the matrix so that we have a consistent human-readable interpretation of the sheet
+        transposed_paper = list(zip(*self.marked_paper))
+        return "\n".join([" ".join(row) for row in transposed_paper])
+
+    def _set_marked_paper(self, marked_paper):
+        self.marked_paper = marked_paper
+        self.max_y = len(self.marked_paper[0]) - 1
+        self.max_x = len(self.marked_paper) - 1
+
     @property
     def num_markings(self):
         result = 0
@@ -76,35 +85,43 @@ class PaperSheet:
                 result += 1 if "#" == val else 0
         return result
 
-    def __str__(self) -> str:
-        # Given that x is the horizontal axis and y is the vertical one, we need to transpose
-        #  the matrix so that we have a consistent human-readable interpretation of the sheet
-        transposed_paper = list(zip(*self.marked_paper))
-        return "\n".join([" ".join(row) for row in transposed_paper])
-
     def do_fold(self, axis: str, axis_position: int) -> PaperSheet:
         if "x" == axis:
-            raise NotImplementedError
+            # Let's fold the paper horizontally
+            # Create a new paper that has been folded
+            new_marked_paper = self.marked_paper[:axis_position]
+
+            for y in range(self.max_y + 1):
+                for x in range(axis_position + 1, self.max_x + 1):
+                    distance = x - axis_position
+                    target_x = axis_position - distance
+
+                    if "#" == self.marked_paper[x][y]:
+                        new_marked_paper[target_x][y] = "#"
+            
+            self._set_marked_paper(new_marked_paper)
+
         else:
             # Let's fold the paper up, for that calculate the distance of the points BELOW the fold
             #  line to the fold line, then substract that to the position of the fold line to get
             #  the new y coordinate and update accordingly
-            # Given that we have stored the matrix "sideways", to fold up we are really folding 
+            # Given that we have stored the matrix "sideways", to fold up we are really folding
             #  horizontally for axis y
-            new_marked_paper = []
-            
+
+            # Create a new paper that has been folded
+            new_marked_paper = [y[:axis_position]
+                                for y in [x for x in self.marked_paper]]
+
             for y in range(axis_position + 1, self.max_y + 1):
                 for x in range(self.max_x + 1):
                     distance = y - axis_position
                     target_y = axis_position - distance
 
                     if "#" == self.marked_paper[x][y]:
-                        self.marked_paper[x][target_y] = "#"
-            
-            # Cut anything below the fold line
-            
-            self.marked_paper = self.marked_paper[:axis_position][:]
+                        new_marked_paper[x][target_y] = "#"
+
+            self._set_marked_paper(new_marked_paper)
 
 
 if __name__ == "__main__":
-    Day13("13_test.txt").part_1()
+    Day13("13_input.txt").part_1()
