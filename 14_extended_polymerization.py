@@ -44,7 +44,10 @@ class Day14(AdventDay):
     def part_2(self):
         polymer_template, rules = self.parsed_input
 
-        counts = self.optimal_polymerization(polymer_template, rules, steps=10, debug=True)
+        counts = self.optimal_polymerization(polymer_template,
+                                             rules,
+                                             steps=40,
+                                             debug=True)
 
         most_common, less_common = self.calculate_most_less_common_from_optimal(counts)
         print(f"Most common: {most_common}\nLess common: {less_common}")
@@ -75,28 +78,29 @@ class Day14(AdventDay):
 
     def optimal_polymerization(self, polymer: str, rules: dict, steps: int, debug: bool = False) -> str:
         last_pairs = Counter([polymer[i]+polymer[i+1] for i in range(len(polymer) - 1)])
-        #pair_count = Counter()
+        char_count = Counter(polymer)
 
         for step in range(steps):
             # Generate new pairs
             new_pairs = Counter()
             
             for p, cnt in last_pairs.items():
-                # One pair creates 2 new pairs
+                # Get the child character from this pair
                 pair_result = rules[p].result
 
+                # The result should be counted as many times as the parent pairs
+                char_count.update({pair_result: cnt})
+
+                # A pair produces 2 pairs
                 for new_pair in [p[0] + pair_result, pair_result + p[1]]:
                     new_pairs.update({new_pair: cnt})
 
-            #pair_count += Counter(new_pairs)
             last_pairs = new_pairs
 
             if debug:
                 print(f"Step {step + 1}...")
-        
-        pair_count = Counter(last_pairs)
 
-        return pair_count
+        return char_count
 
     def calculate_most_less_common(self, polymer) -> tuple:
         count = Counter(polymer)
@@ -105,22 +109,11 @@ class Day14(AdventDay):
         return (max_key, count[max_key]), (min_key, count[min_key])
 
     def calculate_most_less_common_from_optimal(self, counts: Counter) -> tuple:
-        count = Counter()
-
-        for pair, cnt in counts.items():
-            char_1, char_2 = pair
-            if char_1 == char_2:
-                count.update({char_1: cnt//2})
-                
-            else:
-                count.update({char_1: cnt})
-                count.update({char_2: cnt})
-
-        max_key = max(count, key=count.get)
-        min_key = min(count, key=count.get)
-        return (max_key, count[max_key]), (min_key, count[min_key])
+        max_key = max(counts, key=counts.get)
+        min_key = min(counts, key=counts.get)
+        return (max_key, counts[max_key]), (min_key, counts[min_key])
 
 
 
 if __name__ == "__main__":
-    Day14("14_test.txt").part_2()
+    Day14("14_input.txt").part_2()
