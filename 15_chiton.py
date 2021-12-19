@@ -8,63 +8,43 @@ from advent_utils import AdventDay
 class Day15(AdventDay):
     def parse_input(self, lines: list) -> list:
         cavern = []
-        nodes = {}
 
-        for x, line in enumerate(lines):
-            line = line.strip()
-            row = []
+        for l in lines:
+            l = l.strip()
 
-            for y, cost in enumerate(line):
-                cost = int(cost)
-                row.append(cost)
-
-                nodes[(x,y)] = NavigationNode((x,y),
-                                              cost)
-            cavern.append(row)
+            cavern.append([int(d) for d in l])
             
-        return cavern, nodes
+        return cavern
     
     def part_1(self):
-        cavern, nodes = self.parsed_input
-        goal = (9,9)
-        result = self.navigate_cavern(cavern, nodes, goal)
+        cavern = self.parsed_input
+        goal = (len(cavern) - 1, len(cavern[0]) - 1)
+        result = self.navigate_cavern(cavern, goal)
 
-        costs = []
         node = result["end_node"]
-        while node:
-            costs.append(node.initial_cost)
-            node = node.prev_node
 
-        print(f"Cost of solution at goal: {sum(costs)}")
+        print(f"Cost of solution at goal: {node.accumulated_cost}")
         
 
     def part_2(self):
         return super().part_2()
 
     def navigate_cavern(self, cavern: list,
-                        nodes: dict,
                         goal: tuple,
                         start: tuple=(0,0)):
         frontier = []  # We'll heapify as we go along
         visited = set()
-        
-        for node in nodes.values():
-            node.goal = goal
-            node.cavern = cavern
 
-        frontier.append(nodes[start])
+        start_node = NavigationNode(position=start,
+                                    cavern = cavern,
+                                    goal=goal)
+
+        frontier.append(start_node)
         heapq.heapify(frontier)
 
         while frontier:
 
-            # In order to preserve how the heap looked like when we processed the node, let's create a string with the info
-            
-            #heap_snapshot = "[" + ", ".join([f"F(x)={x.cost}" for x in frontier]) + "]"
             current_node = heapq.heappop(frontier)
-
-            # We add the heap information to the current node so that, when we traverse the final solution, we'll see how
-            #  the heap looked like in chronological order.
-            current_node.accumulated_cost = current_node.prev_node.cost_of_solution if current_node.prev_node else current_node.initial_cost
 
             if current_node.position == goal:
                 return {
@@ -73,11 +53,13 @@ class Day15(AdventDay):
                     "success": True
                 }
 
-            for neighbor in current_node.get_possible_movements():
-                neighbor = nodes[neighbor]
+            for neighbor_position in current_node.get_possible_movements():
 
-                if neighbor.position not in visited and not current_node.has_been_visited:
-                    neighbor.prev_node = current_node
+                if neighbor_position not in visited and not current_node.has_been_visited:
+                    neighbor = NavigationNode(neighbor_position,
+                                              goal,
+                                              cavern,
+                                              parent=current_node)
                     heapq.heappush(frontier, neighbor)
 
             visited.add(current_node.position)
@@ -91,28 +73,43 @@ class Day15(AdventDay):
 class NavigationNode:
     def __init__(self,
                  position: tuple,
-                 initial_cost: int) -> None:
+                 goal: tuple,
+                 cavern: list,
+                 parent: NavigationNode=None) -> None:
         self.position = position
-        self.initial_cost = initial_cost
+        self.initial_cost = cavern[position[0]][position[1]]
         self.has_been_visited = False
-        
-        # To be set later
-        self.accumulated_cost = 0
-        self.cavern = None
-        self.goal = None
+        self.parent = parent
+        self.goal = goal
+        self.cavern = cavern
+
+        # We don't count the start cost per the instructions
+        self.accumulated_cost = 0 if not parent else parent.accumulated_cost + self.initial_cost
         self.prev_node = None
     
     @property
-    def cost_of_solution(self):
-        # if not self.goal:
-        return self.initial_cost
-        #else:
-            # Calculate the Manhattan distance to the goal
-            # manhattan_distance = abs(self.goal[0] - self.position[0]) + abs(self.goal[1] - self.position[1])
-            #return manhattan_distance + self.accumulated_cost
+    def distance_to_goal(self):
+        # Calculate the Manhattan distance to the goal
+        manhattan_distance = abs(self.goal[0] - self.position[0]) + abs(self.goal[1] - self.position[1])
+        return manhattan_distance
+    
+    @property
+    def path_taken(self):
+        path = []
+        node = self
+
+        while node:
+            path.append(node.initial_cost)
+            node = node.parent
+        
+        return path[::-1]
     
     def __lt__(self, other: NavigationNode):
-        return self.cost_of_solution <= other.cost_of_solution
+        # Break the tie with the Manhattan distance
+        if self.accumulated_cost == other.accumulated_cost:
+            return self.distance_to_goal < other.distance_to_goal
+
+        return self.accumulated_cost <= other.accumulated_cost
     
     def get_possible_movements(self) -> list:
         x, y = self.position
@@ -126,11 +123,11 @@ class NavigationNode:
             (x, y + 1), # RIGHT
         ]:
             new_x, new_y = move
-            if 0 <= new_x < len(self.cavern) and 0 <= new_y < len(self.cavern[0]):
+            if 0 <= new_x < len(self.cavern) and 0 <= new_y < len(self.cavern[0]):                
                 legal_moves.append(move)
         
         return legal_moves
 
 
 if __name__ == "__main__":
-    Day15("15_test.txt").part_1()
+    Day15("15_input.txt").part_1()
