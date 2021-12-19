@@ -106,10 +106,11 @@ class NavigationNode:
     
     def __lt__(self, other: NavigationNode):
         # Break the tie with the Manhattan distance
-        if self.accumulated_cost == other.accumulated_cost:
-            return self.distance_to_goal < other.distance_to_goal
-
-        return self.accumulated_cost <= other.accumulated_cost
+        #if self.accumulated_cost == other.accumulated_cost:
+        #    return self.distance_to_goal < other.distance_to_goal
+        total_cost = self.accumulated_cost + self.distance_to_goal
+        other_total_cost = other.accumulated_cost + self.distance_to_goal
+        return total_cost < other_total_cost
     
     def get_possible_movements(self) -> list:
         x, y = self.position
