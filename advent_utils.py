@@ -18,6 +18,17 @@ class AdventDay(ABC):
     @staticmethod
     def read_input(filename: str):
         return read_input_file(filename)
+    
+    @staticmethod
+    def parse_matrix_numbers(lines: list) -> list:
+        matrix_num = []
+
+        for l in lines:
+            l = l.strip()
+
+            matrix_num.append([int(d) for d in l])
+            
+        return matrix_num
 
     @abstractmethod
     def parse_input(self, lines: list) -> list:
