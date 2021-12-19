@@ -6,7 +6,7 @@ def read_input_file(filename: str) -> list:
     with open(filename) as fp:
         lines = fp.readlines()
 
-    return lines
+    return [l.strip() for l in lines]
 
 
 class AdventDay(ABC):
@@ -24,8 +24,6 @@ class AdventDay(ABC):
         matrix_num = []
 
         for l in lines:
-            l = l.strip()
-
             matrix_num.append([int(d) for d in l])
             
         return matrix_num
