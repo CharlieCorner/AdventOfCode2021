@@ -44,7 +44,7 @@ class PacketParser:
         # Detect the boundaries of the packet to be further processed
         results = []
         
-        while data:
+        while len(data) > 7: # That is, until we don't even have enough data for headers
             version = binary_2_decimal(data[:3])
             type = binary_2_decimal(data[3:6])
 
@@ -83,6 +83,9 @@ class Packet:
     def parse_data(self, data: str) -> list:
         raise NotImplementedError
 
+    def __str__(self) -> str:
+        return str(self.value) if self.value else str(self.subpackets)
+
 
 class LiteralValuePacket(Packet):
     def __init__(self, version: int, data: str) -> None:
@@ -120,7 +123,7 @@ class OperatorPacket(Packet):
             index += 11
 
             for _ in range(num_packets):
-                self.subpackets.append(PacketParser.parse_packet(data[index:index + 11]))
+                self.subpackets.extend(PacketParser.parse_data_stream(data[index:index + 11]))
                 index += 11
         else:
             bits_in_subpackets = binary_2_decimal(data[index:index + 15])
@@ -145,7 +148,7 @@ class Day16(AdventDay):
             print(f"Binary: {binary_rep}")
 
             packet = PacketParser.parse_data_stream(binary_rep)
-            print(packet)
+            print(str(*packet))
 
     def part_2(self):
         return super().part_2()
