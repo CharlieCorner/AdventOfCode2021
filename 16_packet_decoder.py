@@ -39,36 +39,32 @@ def binary_2_decimal(binary: str) -> int:
 class PacketParser:
 
     @staticmethod
-    def parse_data_stream(data: str,
-                          package_in_packet: bool = False):
-        # Detect the boundaries of the packet to be further processed
-        results = []
-        
-        while len(data) > 10: # That is, until we don't even have enough data for headers and data
-            version = binary_2_decimal(data[:3])
-            type = binary_2_decimal(data[3:6])
+    def parse_data_stream(data: str) -> Packet:
 
-            if type == 4:
-                new_packet = LiteralValuePacket(version=version,
-                                                data=data[6:])
-            else:
-                new_packet = OperatorPacket(version=version,
-                                            type_id=type,
+        version = binary_2_decimal(data[:3])
+        type = binary_2_decimal(data[3:6])
+
+        if type == 4:
+            new_packet = LiteralValuePacket(version=version,
                                             data=data[6:])
-            results.append(new_packet)
-
-            # We now discard data that was used by the packets
-            #  we need to take into account the data that we used for the header bits
-            #  plus the data used by the packet itself
-            data = data[6 + len(new_packet.parsed_data):]
-        
-        if package_in_packet:
-            container = Packet(None, None)
-            container.subpackets = results
-            return container
         else:
-            return results
+            new_packet = OperatorPacket(version=version,
+                                        type_id=type,
+                                        data=data[6:])
+        return new_packet
 
+    @staticmethod
+    def sum_versions(packet: Packet) -> int:
+        result = 0
+        stack = [packet]
+
+        # We'll perform a DFS to get all of the packets
+        while stack:
+            p = stack.pop()
+            result += p.version
+            stack.extend(p.subpackets)
+            
+        return result
 
 
 class Packet:
@@ -77,8 +73,8 @@ class Packet:
         self.type_id = type_id
         self.subpackets = []
         self.value = None
-        self.parsed_data = self.parse_data(data)
-    
+        self.parsed_bits = self.parse_data(data)
+
     @abstractmethod
     def parse_data(self, data: str) -> list:
         raise NotImplementedError
@@ -89,9 +85,10 @@ class Packet:
 
 class LiteralValuePacket(Packet):
     def __init__(self, version: int, data: str) -> None:
-        super().__init__(version, type_id=4, data=data)  # All LiteralValue packets are ID = 4
+        # All LiteralValue packets are ID = 4
+        super().__init__(version, type_id=4, data=data)
 
-    def parse_data(self, data: str) -> list:
+    def parse_data(self, data: str) -> int:
         continue_parsing_data = True
         index = 0
         val = ""
@@ -100,17 +97,18 @@ class LiteralValuePacket(Packet):
             continue_parsing_data = data[index] == "1"
             val += data[index + 1:index + 5]
             index += 5
-        
+
         self.value = binary_2_decimal(val)
 
-        return data[:index]
+        # Count the bits in the header that were already parsed by the PacketParser
+        return index + 6
 
 
 class OperatorPacket(Packet):
     def __init__(self, version: int, type_id: int, data: str) -> None:
         super().__init__(version, type_id, data=data)
-    
-    def parse_data(self, data: str) -> list:
+
+    def parse_data(self, data: str) -> int:
         index = 0
 
         self.length_type_id = int(data[index])
@@ -123,23 +121,21 @@ class OperatorPacket(Packet):
             index += 11
 
             for _ in range(num_packets):
-                self.subpackets.extend(PacketParser.parse_data_stream(data[index:]))
+                new_packet = PacketParser.parse_data_stream(data[index:])
+                self.subpackets.append(new_packet)
+                index += new_packet.parsed_bits
         else:
             bits_in_subpackets = binary_2_decimal(data[index:index + 15])
             index += 15
+            bit_limit = index + bits_in_subpackets
 
-            self.subpackets.extend(
-                PacketParser.parse_data_stream(data[index:]))
-        
-        # Advance the index for as many levels as necessary in each of the subpackets
-        new_packets = []
-        new_packets.extend(self.subpackets)
-        while new_packets:
-            p = new_packets.pop()
-            index += len(p.parsed_data)
-            new_packets.extend(p.subpackets)
+            while index < bit_limit:
+                new_packet = PacketParser.parse_data_stream(data[index:])
+                self.subpackets.append(new_packet)
+                index += new_packet.parsed_bits
 
-        return data[:index]
+        # We add to the count the 6 bits needed for the headers
+        return index + 6
 
 
 class Day16(AdventDay):
@@ -156,16 +152,9 @@ class Day16(AdventDay):
             print(f"Binary: {binary_rep}")
 
             packet = PacketParser.parse_data_stream(binary_rep)
-            
-            sum_versions = 0
 
-            # Go through the levels of Packets
-            new_packets = packet.subpackets if isinstance(packet, Packet) else packet
-            while new_packets:
-                p = new_packets.pop()
-                sum_versions += p.version
-                new_packets.extend(p.subpackets)
-            
+            sum_versions = PacketParser.sum_versions(packet)
+
             print(f"The sum of version for {transmision} is: {sum_versions}")
 
     def part_2(self):
