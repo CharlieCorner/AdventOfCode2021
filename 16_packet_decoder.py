@@ -1,5 +1,6 @@
 from __future__ import annotations
 from types import DynamicClassAttribute
+from abc import ABC, abstractmethod
 
 from advent_utils import AdventDay
 
@@ -38,73 +39,96 @@ def binary_2_decimal(binary: str) -> int:
 class PacketParser:
 
     @staticmethod
-    def parse_packet(binary: str) -> Packet:
-        # Parse the header with the version and type
-        version = binary_2_decimal(binary[:3])
-        type = binary_2_decimal(binary[3:6])
-        data = binary[6:]
+    def parse_data_stream(data: str,
+                          package_in_packet: bool = False):
+        # Detect the boundaries of the packet to be further processed
+        results = []
+        
+        while data:
+            version = binary_2_decimal(data[:3])
+            type = binary_2_decimal(data[3:6])
 
-        if type == 4:
-            return LiteralValuePacket(version=version,
-                                      data=data)
+            if type == 4:
+                new_packet = LiteralValuePacket(version=version,
+                                                data=data[6:])
+            else:
+                new_packet = OperatorPacket(version=version,
+                                            type_id=type,
+                                            data=data[6:])
+            results.append(new_packet)
+
+            # We now discard data that was used by the packets
+            #  we need to take into account the data that we used for the header bits
+            #  plus the data used by the packet itself
+            data = data[6 + len(new_packet.parsed_data):]
+        
+        if package_in_packet:
+            container = Packet(None, None)
+            container.subpackets = results
+            return container
         else:
-            return OperatorPacket(version=version,
-                                  type_id=type,
-                                  data=data)
+            return results
 
-    @staticmethod
-    def detect_packet_boundaries(binary: str) -> list:
-        raise NotImplementedError
 
 
 class Packet:
-    def __init__(self, version: int, type_id: int) -> None:
+    def __init__(self, version: int, type_id: int, data: str) -> None:
         self.version = version
         self.type_id = type_id
         self.subpackets = []
         self.value = None
+        self.parsed_data = self.parse_data(data)
+    
+    @abstractmethod
+    def parse_data(self, data: str) -> list:
+        raise NotImplementedError
 
 
 class LiteralValuePacket(Packet):
     def __init__(self, version: int, data: str) -> None:
-        super().__init__(version, type_id=4)  # All LiteralValue packets are ID = 4
+        super().__init__(version, type_id=4, data=data)  # All LiteralValue packets are ID = 4
 
-        self.value = self._parse_value(data)
-
-    def _parse_data(self, data):
+    def parse_data(self, data: str) -> list:
         continue_parsing_data = True
         index = 0
         val = ""
 
         while continue_parsing_data:
-            val += data[index + 1:index + 5]
             continue_parsing_data = data[index] == "1"
+            val += data[index + 1:index + 5]
             index += 5
-        return binary_2_decimal(val)
+        
+        self.value = binary_2_decimal(val)
+
+        return data[:index]
 
 
 class OperatorPacket(Packet):
     def __init__(self, version: int, type_id: int, data: str) -> None:
-        super().__init__(version, type_id)
+        super().__init__(version, type_id, data=data)
+    
+    def parse_data(self, data: str) -> list:
+        index = 0
 
-        self.length_type_id = int(data[0])
+        self.length_type_id = int(data[index])
         self.is_number_of_packets = self.length_type_id == 1
 
-        # Remove the bit that we have consumed
-        data = data[1:]
+        index += 1
 
         if self.is_number_of_packets:
-            num_packets = binary_2_decimal(data[:11])
-            data = data[11:]
+            num_packets = binary_2_decimal(data[index:index + 11])
+            index += 11
 
             for _ in range(num_packets):
-                self.subpackets.append(PacketParser.parse_packet(data[:11]))
-                data = data[11:]
+                self.subpackets.append(PacketParser.parse_packet(data[index:index + 11]))
+                index += 11
         else:
-            bits_in_subpackets = binary_2_decimal(data[:15])
-            data = data[15:]
+            bits_in_subpackets = binary_2_decimal(data[index:index + 15])
+            index += 15
             self.subpackets.extend(
-                PacketParser.detect_packet_boundaries(data[:bits_in_subpackets]))
+                PacketParser.parse_data_stream(data[index:index + bits_in_subpackets]))
+            index += bits_in_subpackets
+        return data[:index]
 
 
 class Day16(AdventDay):
@@ -120,7 +144,8 @@ class Day16(AdventDay):
             binary_rep = hexadecimal_2_binary(transmision)
             print(f"Binary: {binary_rep}")
 
-            packet = PacketParser.parse_packet(binary_rep)
+            packet = PacketParser.parse_data_stream(binary_rep)
+            print(packet)
 
     def part_2(self):
         return super().part_2()
