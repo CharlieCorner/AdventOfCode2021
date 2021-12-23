@@ -44,7 +44,7 @@ class PacketParser:
         # Detect the boundaries of the packet to be further processed
         results = []
         
-        while len(data) > 7: # That is, until we don't even have enough data for headers
+        while len(data) > 10: # That is, until we don't even have enough data for headers and data
             version = binary_2_decimal(data[:3])
             type = binary_2_decimal(data[3:6])
 
@@ -123,14 +123,22 @@ class OperatorPacket(Packet):
             index += 11
 
             for _ in range(num_packets):
-                self.subpackets.extend(PacketParser.parse_data_stream(data[index:index + 11]))
-                index += 11
+                self.subpackets.extend(PacketParser.parse_data_stream(data[index:]))
         else:
             bits_in_subpackets = binary_2_decimal(data[index:index + 15])
             index += 15
+
             self.subpackets.extend(
-                PacketParser.parse_data_stream(data[index:index + bits_in_subpackets]))
-            index += bits_in_subpackets
+                PacketParser.parse_data_stream(data[index:]))
+        
+        # Advance the index for as many levels as necessary in each of the subpackets
+        new_packets = []
+        new_packets.extend(self.subpackets)
+        while new_packets:
+            p = new_packets.pop()
+            index += len(p.parsed_data)
+            new_packets.extend(p.subpackets)
+
         return data[:index]
 
 
@@ -148,7 +156,17 @@ class Day16(AdventDay):
             print(f"Binary: {binary_rep}")
 
             packet = PacketParser.parse_data_stream(binary_rep)
-            print(str(*packet))
+            
+            sum_versions = 0
+
+            # Go through the levels of Packets
+            new_packets = packet.subpackets if isinstance(packet, Packet) else packet
+            while new_packets:
+                p = new_packets.pop()
+                sum_versions += p.version
+                new_packets.extend(p.subpackets)
+            
+            print(f"The sum of version for {transmision} is: {sum_versions}")
 
     def part_2(self):
         return super().part_2()
