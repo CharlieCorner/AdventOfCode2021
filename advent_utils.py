@@ -6,7 +6,7 @@ def read_input_file(filename: str) -> list:
     with open(filename) as fp:
         lines = fp.readlines()
 
-    return [l.strip() for l in lines]
+    return [l.strip() for l in lines if l and l[0] != "#"]
 
 
 class AdventDay(ABC):
