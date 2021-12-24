@@ -1,6 +1,7 @@
 from __future__ import annotations
 from types import DynamicClassAttribute
 from abc import ABC, abstractmethod
+from functools import reduce
 
 from advent_utils import AdventDay
 
@@ -63,7 +64,7 @@ class PacketParser:
             p = stack.pop()
             result += p.version
             stack.extend(p.subpackets)
-            
+
         return result
 
 
@@ -77,6 +78,10 @@ class Packet:
 
     @abstractmethod
     def parse_data(self, data: str) -> list:
+        raise NotImplementedError
+
+    @abstractmethod
+    def execute(self) -> int:
         raise NotImplementedError
 
     def __str__(self) -> str:
@@ -102,9 +107,31 @@ class LiteralValuePacket(Packet):
 
         # Count the bits in the header that were already parsed by the PacketParser
         return index + 6
+    
+    def execute(self) -> int:
+        return self.value
 
 
 class OperatorPacket(Packet):
+    ###
+    # Packets with type ID 0 are sum packets - their value is the sum of the values of their sub-packets. If they only have a single sub-packet, their value is the value of the sub-packet.
+    # Packets with type ID 1 are product packets - their value is the result of multiplying together the values of their sub-packets. If they only have a single sub-packet, their value is the value of the sub-packet.
+    # Packets with type ID 2 are minimum packets - their value is the minimum of the values of their sub-packets.
+    # Packets with type ID 3 are maximum packets - their value is the maximum of the values of their sub-packets.
+    # Packets with type ID 5 are greater than packets - their value is 1 if the value of the first sub-packet is greater than the value of the second sub-packet; otherwise, their value is 0. These packets always have exactly two sub-packets.
+    # Packets with type ID 6 are less than packets - their value is 1 if the value of the first sub-packet is less than the value of the second sub-packet; otherwise, their value is 0. These packets always have exactly two sub-packets.
+    # Packets with type ID 7 are equal to packets - their value is 1 if the value of the first sub-packet is equal to the value of the second sub-packet; otherwise, their value is 0. These packets always have exactly two sub-packets.
+
+    operations = {
+        0: lambda subpackets: sum([p.execute() for p in subpackets]),
+        1: lambda subpackets: reduce(lambda x, y: x * y, [p.execute() for p in subpackets]),
+        2: lambda subpackets: min([p.execute() for p in subpackets]),
+        3: lambda subpackets: max([p.execute() for p in subpackets]),
+        5: lambda subpackets: 1 if subpackets[0].execute() > subpackets[1].execute() else 0,
+        6: lambda subpackets: 1 if subpackets[0].execute() < subpackets[1].execute() else 0,
+        7: lambda subpackets: 1 if subpackets[0].execute() == subpackets[1].execute() else 0,
+    }
+
     def __init__(self, version: int, type_id: int, data: str) -> None:
         super().__init__(version, type_id, data=data)
 
@@ -137,6 +164,10 @@ class OperatorPacket(Packet):
         # We add to the count the 6 bits needed for the headers
         return index + 6
 
+    def execute(self) -> int:
+        operation = OperatorPacket.operations[self.type_id]
+        return operation(self.subpackets)
+
 
 class Day16(AdventDay):
     def parse_input(self, lines: list) -> list:
@@ -158,8 +189,19 @@ class Day16(AdventDay):
             print(f"The sum of version for {transmision} is: {sum_versions}")
 
     def part_2(self):
-        return super().part_2()
+
+        for transmision in self.parsed_input:
+            print(f"Transmission: {transmision}")
+
+            binary_rep = hexadecimal_2_binary(transmision)
+            print(f"Binary: {binary_rep}")
+
+            packet = PacketParser.parse_data_stream(binary_rep)
+
+            result = packet.execute()
+
+            print(f"The result of execution for {transmision} is: {result}")
 
 
 if __name__ == "__main__":
-    Day16("16_test.txt").part_1()
+    Day16("16_input.txt").part_2()
